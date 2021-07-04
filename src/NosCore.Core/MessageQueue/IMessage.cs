@@ -17,19 +17,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-using NosCore.Data.WebApi;
-using NosCore.Shared.Configuration;
 using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
-namespace NosCore.Core.HttpClients.ConnectedAccountHttpClients
+namespace NosCore.Core.MessageQueue
 {
-    public interface IConnectedAccountHttpClient
+    public interface IMessage
     {
-        Task<List<ConnectedAccount>> GetConnectedAccountAsync(ChannelInfo channel);
-        Task DisconnectAsync(long connectedCharacterId);
-
-        Task<Tuple<ServerConfiguration?, ConnectedAccount?>> GetCharacterAsync(long? characterId, string? characterName);
+        public Guid Id { get; set; }
+        public string Body { get; set; }
     }
 }

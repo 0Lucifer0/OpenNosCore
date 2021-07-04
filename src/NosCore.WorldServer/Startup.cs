@@ -45,7 +45,6 @@ using NosCore.Core.Controllers;
 using NosCore.Core.Encryption;
 using NosCore.Core.HttpClients.AuthHttpClients;
 using NosCore.Core.HttpClients.ChannelHttpClients;
-using NosCore.Core.HttpClients.ConnectedAccountHttpClients;
 using NosCore.Core.I18N;
 using NosCore.Dao;
 using NosCore.Dao.Interfaces;
@@ -80,6 +79,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using NosCore.Core.MessageQueue;
 using Character = NosCore.GameObject.Character;
 using ConfigureJwtBearerOptions = NosCore.Core.ConfigureJwtBearerOptions;
 using Deserializer = NosCore.Packets.Deserializer;
@@ -225,7 +225,6 @@ namespace NosCore.WorldServer
             containerBuilder.RegisterLogger();
             containerBuilder.RegisterType<ChannelHttpClient>().SingleInstance().AsImplementedInterfaces();
             containerBuilder.RegisterType<AuthHttpClient>().AsImplementedInterfaces();
-            containerBuilder.RegisterType<ConnectedAccountHttpClient>().AsImplementedInterfaces();
             containerBuilder.RegisterAssemblyTypes(typeof(BlacklistHttpClient).Assembly)
                 .Where(t => t.Name.EndsWith("HttpClient"))
                 .AsImplementedInterfaces();
@@ -264,6 +263,7 @@ namespace NosCore.WorldServer
             containerBuilder.RegisterType<WorldDecoder>().As<MessageToMessageDecoder<IByteBuffer>>();
             containerBuilder.RegisterType<WorldEncoder>().As<MessageToMessageEncoder<IEnumerable<IPacket>>>();
             containerBuilder.RegisterType<AuthController>();
+            containerBuilder.RegisterType<PubSubHubClient>().AsImplementedInterfaces().SingleInstance();
 
             //NosCore.GameObject
             containerBuilder.RegisterType<ClientSession>();
@@ -327,7 +327,7 @@ namespace NosCore.WorldServer
 
             services
                 .AddControllers()
-                .AddApplicationPart(typeof(StatController).GetTypeInfo().Assembly)
+                .AddApplicationPart(typeof(IncommingMailController).GetTypeInfo().Assembly)
                 .AddApplicationPart(typeof(AuthController).GetTypeInfo().Assembly)
                 .AddControllersAsServices();
 

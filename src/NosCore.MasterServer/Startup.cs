@@ -40,7 +40,6 @@ using NosCore.Core;
 using NosCore.Core.Controllers;
 using NosCore.Core.Encryption;
 using NosCore.Core.HttpClients.ChannelHttpClients;
-using NosCore.Core.HttpClients.ConnectedAccountHttpClients;
 using NosCore.Core.HttpClients.IncommingMailHttpClients;
 using NosCore.Core.I18N;
 using NosCore.Dao;
@@ -63,6 +62,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using NosCore.Core.MessageQueue;
 using ConfigureJwtBearerOptions = NosCore.Core.ConfigureJwtBearerOptions;
 using FriendController = NosCore.MasterServer.Controllers.FriendController;
 using ILogger = Serilog.ILogger;
@@ -155,6 +155,7 @@ namespace NosCore.MasterServer
         private ContainerBuilder InitializeContainer(IServiceCollection services)
         {
             var containerBuilder = new ContainerBuilder();
+            containerBuilder.RegisterType<MasterClientList>().SingleInstance();
             containerBuilder.Register<IHasher>(o => o.Resolve<IOptions<WebApiConfiguration>>().Value.HashingType switch
             {
                 HashingType.BCrypt => new BcryptHasher(),
@@ -181,7 +182,6 @@ namespace NosCore.MasterServer
                 .SingleInstance();
 
             containerBuilder.RegisterType<ChannelHttpClient>().SingleInstance().AsImplementedInterfaces();
-            containerBuilder.RegisterType<ConnectedAccountHttpClient>().AsImplementedInterfaces();
             containerBuilder.RegisterType<IncommingMailHttpClient>().AsImplementedInterfaces();
             containerBuilder.RegisterAssemblyTypes(typeof(BazaarService).Assembly)
                 .Where(t => t.Name.EndsWith("Service"))
@@ -220,6 +220,7 @@ namespace NosCore.MasterServer
             services.AddLogging(builder => builder.AddFilter("Microsoft", LogLevel.Warning));
             services.AddAuthentication(config => config.DefaultScheme = JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
 
+            services.AddSignalR();
             services.AddAuthorization(o =>
                 {
                     o.DefaultPolicy = new AuthorizationPolicyBuilder()
@@ -251,11 +252,13 @@ namespace NosCore.MasterServer
             app.UseAuthentication();
             app.UseRouting();
 
+            app.UseWebSockets();
             app.UseAuthorization();
 
             LogLanguage.Language = app.ApplicationServices.GetRequiredService<IOptions<MasterConfiguration>>().Value.Language;
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapHub<PubSubHub>(nameof(PubSubHub));
                 endpoints.MapControllers();
             });
         }

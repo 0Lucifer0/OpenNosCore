@@ -17,16 +17,19 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-using NosCore.Data.Enumerations;
+using System.Collections.Concurrent;
+using NosCore.Data.WebApi;
 
-namespace NosCore.Data.WebApi
+namespace NosCore.Core.MessageQueue
 {
-    public class StatData
+    public class MasterClientList
     {
-        public Character? Character { get; set; }
+        public readonly ConcurrentDictionary<string, ChannelInfo> Channels = new ConcurrentDictionary<string, ChannelInfo>();
+        public readonly ConcurrentDictionary<string, ConcurrentDictionary<long, ConnectedAccount>> ConnectedAccounts = new ConcurrentDictionary<string, ConcurrentDictionary<long, ConnectedAccount>>();
 
-        public UpdateStatActionType ActionType { get; set; }
+        public int ConnectionCounter { get; set; }
+        public ConcurrentDictionary<string, long> ReadyForAuth { get; } = new ConcurrentDictionary<string, long>();
 
-        public long Data { get; set; } //TODO: find other type(s)
+        public ConcurrentDictionary<string, string> AuthCodes { get; } = new ConcurrentDictionary<string, string>();
     }
 }

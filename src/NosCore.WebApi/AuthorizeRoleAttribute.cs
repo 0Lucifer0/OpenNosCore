@@ -17,14 +17,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-using NosCore.Data.WebApi;
-using NosCore.Shared.Configuration;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+using NosCore.Shared.Enumerations;
+using System;
+using System.Linq;
 
-namespace NosCore.GameObject.HttpClients.StatHttpClient
+namespace NosCore.Core
 {
-    public interface IStatHttpClient
+    public class AuthorizeRoleAttribute : AuthorizeAttribute
     {
-        Task ChangeStatAsync(StatData data, ServerConfiguration item1);
+        public AuthorizeRoleAttribute(AuthorityType allowedRole)
+        {
+            var enums = Enum.GetValues(typeof(AuthorityType)).Cast<AuthorityType>().ToList()
+                .Where(s => s >= allowedRole);
+            Roles = string.Join(",", enums.ToArray());
+        }
     }
 }

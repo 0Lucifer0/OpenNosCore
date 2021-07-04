@@ -91,20 +91,5 @@ namespace NosCore.GameObject.Networking
         {
             _instance = null;
         }
-
-        public List<ConnectedAccount> ConnectedAccounts()
-        {
-            return ClientSessions.Values.Select(s =>
-                new ConnectedAccount
-                {
-                    Name = s.Account.Name,
-                    Language = s.Account.Language,
-                    ConnectedCharacter = s.Character == null ? null : new Data.WebApi.Character
-                    {
-                        Name = s.Character.Name, Id = s.Character.CharacterId,
-                        FriendRequestBlocked = s.Character.FriendRequestBlocked
-                    }
-                }).ToList();
-        }
     }
 }

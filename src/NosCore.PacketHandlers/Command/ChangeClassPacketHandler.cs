@@ -17,30 +17,28 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-using NosCore.Core.HttpClients.ConnectedAccountHttpClients;
+using System.Linq;
 using NosCore.Core.I18N;
 using NosCore.Data.CommandPackets;
 using NosCore.Data.Enumerations;
 using NosCore.Data.Enumerations.I18N;
 using NosCore.Data.WebApi;
 using NosCore.GameObject;
-using NosCore.GameObject.HttpClients.StatHttpClient;
 using NosCore.GameObject.Networking.ClientSession;
 using NosCore.Packets.ServerPackets.UI;
 using System.Threading.Tasks;
+using NosCore.Core.MessageQueue;
+using NosCore.GameObject.Messages;
 using Character = NosCore.Data.WebApi.Character;
 
 namespace NosCore.PacketHandlers.Command
 {
     public class ChangeClassPacketHandler : PacketHandler<ChangeClassPacket>, IWorldPacketHandler
     {
-        private readonly IConnectedAccountHttpClient _connectedAccountHttpClient;
-        private readonly IStatHttpClient _statHttpClient;
+        private readonly IPubSubHub _connectedAccountHttpClient;
 
-        public ChangeClassPacketHandler(IStatHttpClient statHttpClient,
-            IConnectedAccountHttpClient connectedAccountHttpClient)
+        public ChangeClassPacketHandler(IPubSubHub connectedAccountHttpClient)
         {
-            _statHttpClient = statHttpClient;
             _connectedAccountHttpClient = connectedAccountHttpClient;
         }
 
@@ -52,26 +50,16 @@ namespace NosCore.PacketHandlers.Command
                 return;
             }
 
-            var data = new StatData
-            {
-                ActionType = UpdateStatActionType.UpdateClass,
-                Character = new Character { Name = changeClassPacket.Name },
-                Data = (byte)changeClassPacket.ClassType
-            };
-
-            var receiver = await _connectedAccountHttpClient.GetCharacterAsync(null, changeClassPacket.Name).ConfigureAwait(false);
-
-            if (receiver.Item2 == null) //TODO: Handle 404 in WebApi
+            var data = new UpdateClassMessage(changeClassPacket.Name, changeClassPacket.ClassType);
+            var result = await _connectedAccountHttpClient.SendMessageAsync(data);
+            if (!result)
             {
                 await session.SendPacketAsync(new InfoPacket
                 {
                     Message = GameLanguage.Instance.GetMessageFromKey(LanguageKey.CANT_FIND_CHARACTER,
                         session.Account.Language)
                 }).ConfigureAwait(false);
-                return;
             }
-
-            await _statHttpClient.ChangeStatAsync(data, receiver.Item1!).ConfigureAwait(false);
         }
     }
 }

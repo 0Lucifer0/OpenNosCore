@@ -17,55 +17,43 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-using NosCore.Core.HttpClients.ConnectedAccountHttpClients;
+using System.Linq;
 using NosCore.Core.I18N;
 using NosCore.Data.CommandPackets;
 using NosCore.Data.Enumerations;
 using NosCore.Data.Enumerations.I18N;
 using NosCore.Data.WebApi;
 using NosCore.GameObject;
-using NosCore.GameObject.HttpClients.StatHttpClient;
 using NosCore.GameObject.Networking.ClientSession;
 using NosCore.Packets.ServerPackets.UI;
 using System.Threading.Tasks;
+using NosCore.Core.MessageQueue;
+using NosCore.GameObject.Messages;
 using Character = NosCore.Data.WebApi.Character;
 
 namespace NosCore.PacketHandlers.Command
 {
     public class SetGoldCommandPacketHandler : PacketHandler<SetGoldCommandPacket>, IWorldPacketHandler
     {
-        private readonly IConnectedAccountHttpClient _connectedAccountHttpClient;
-        private readonly IStatHttpClient _statHttpClient;
+        private readonly IPubSubHub _connectedAccountHttpClient;
 
-        public SetGoldCommandPacketHandler(IConnectedAccountHttpClient connectedAccountHttpClient,
-            IStatHttpClient statHttpClient)
+        public SetGoldCommandPacketHandler(IPubSubHub connectedAccountHttpClient)
         {
             _connectedAccountHttpClient = connectedAccountHttpClient;
-            _statHttpClient = statHttpClient;
         }
 
         public override async Task ExecuteAsync(SetGoldCommandPacket goldPacket, ClientSession session)
         {
-            var data = new StatData
-            {
-                ActionType = UpdateStatActionType.UpdateGold,
-                Character = new Character { Name = goldPacket.Name ?? session.Character.Name },
-                Data = goldPacket.Gold
-            };
-
-            var receiver = await _connectedAccountHttpClient.GetCharacterAsync(null, goldPacket.Name ?? session.Character.Name).ConfigureAwait(false);
-
-            if (receiver.Item2 == null) //TODO: Handle 404 in WebApi
+            var data = new UpdateGoldMessage(goldPacket.Name ?? session.Character.Name, goldPacket.Gold);
+            var result = await _connectedAccountHttpClient.SendMessageAsync(data);
+            if (!result)
             {
                 await session.SendPacketAsync(new InfoPacket
                 {
                     Message = GameLanguage.Instance.GetMessageFromKey(LanguageKey.CANT_FIND_CHARACTER,
                         session.Account.Language)
                 }).ConfigureAwait(false);
-                return;
             }
-
-            await _statHttpClient.ChangeStatAsync(data, receiver.Item1!).ConfigureAwait(false);
         }
     }
 }

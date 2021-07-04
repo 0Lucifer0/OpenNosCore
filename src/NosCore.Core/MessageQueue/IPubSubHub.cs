@@ -17,15 +17,27 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-namespace NosCore.Data.Enumerations
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using NosCore.Data.WebApi;
+
+namespace NosCore.Core.MessageQueue
 {
-    public enum UpdateStatActionType : byte
+    public interface IPubSubHub
     {
-        UpdateLevel,
-        UpdateJobLevel,
-        UpdateHeroLevel,
-        UpdateReputation,
-        UpdateGold,
-        UpdateClass
+        Task BindAsync(Channel data, CancellationToken stoppingToken);
+
+        Task<List<IMessage>> ReceiveMessagesAsync(int maxNumberOfMessages);
+
+        Task DeleteMessageAsync(Guid messageId);
+
+        Task<bool> SendMessageAsync(IMessage message);
+
+        Task<List<ConnectedAccount>> GetSubscribersAsync();
+
+        Task SubscribeAsync(ConnectedAccount connectedAccount);
+        Task UnsubscribeAsync(long id);
     }
 }

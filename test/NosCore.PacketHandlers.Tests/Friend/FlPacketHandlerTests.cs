@@ -18,6 +18,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
@@ -68,20 +69,17 @@ namespace NosCore.PacketHandlers.Tests.Friend
             {
                 CharacterName = targetSession.Character.Name
             };
-            TestHelpers.Instance.ConnectedAccountHttpClient
-                .Setup(s => s.GetCharacterAsync(targetSession.Character.CharacterId, null))
-                .ReturnsAsync(new Tuple<ServerConfiguration?, ConnectedAccount?>(new ServerConfiguration(),
-                    new ConnectedAccount
-                    {
-                        ChannelId = 1, ConnectedCharacter = new Character { Id = targetSession.Character.CharacterId }
-                    }));
-            TestHelpers.Instance.ConnectedAccountHttpClient
-                .Setup(s => s.GetCharacterAsync(_session.Character.CharacterId, null))
-                .ReturnsAsync(new Tuple<ServerConfiguration?, ConnectedAccount?>(new ServerConfiguration(),
-                    new ConnectedAccount
-                    { ChannelId = 1, ConnectedCharacter = new Character { Id = _session.Character.CharacterId } }));
+            TestHelpers.Instance.PubSubHubClient
+                .Setup(s => s.GetSubscribersAsync())
+                .ReturnsAsync(new List<ConnectedAccount> {
+                    new ConnectedAccount(_session!.Account.AccountId)
+                        { ChannelId = 1, ConnectedCharacter = new Character { Id = _session!.Character.CharacterId } },
+                    new ConnectedAccount(targetSession!.Account.AccountId)
+                        { ChannelId = 1, ConnectedCharacter = new Character { Id = targetSession.Character.CharacterId } },
+                });
+         
             var friend = new FriendService(Logger, _characterRelationDao!, TestHelpers.Instance.CharacterDao,
-                friendRequestHolder, TestHelpers.Instance.ConnectedAccountHttpClient.Object);
+                friendRequestHolder, TestHelpers.Instance.PubSubHubClient.Object);
             TestHelpers.Instance.FriendHttpClient.Setup(s => s.AddFriendAsync(It.IsAny<FriendShipRequest>()))
                 .Returns(friend.AddFriendAsync(_session.Character.CharacterId,
                     targetSession.Character.VisualId,

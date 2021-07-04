@@ -22,7 +22,6 @@ using NosCore.Core;
 using NosCore.Core.Configuration;
 using NosCore.Core.HttpClients.AuthHttpClients;
 using NosCore.Core.HttpClients.ChannelHttpClients;
-using NosCore.Core.HttpClients.ConnectedAccountHttpClients;
 using NosCore.Core.Networking;
 using NosCore.Dao.Interfaces;
 using NosCore.Data.Dto;
@@ -35,7 +34,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using NosCore.Core.I18N;
+using NosCore.Core.MessageQueue;
 using NosCore.Data.Enumerations.Character;
+using NosCore.Data.Enumerations.I18N;
+using Serilog;
 
 namespace NosCore.GameObject.Networking.LoginService
 {
@@ -44,14 +47,15 @@ namespace NosCore.GameObject.Networking.LoginService
         private readonly IDao<AccountDto, long> _accountDao;
         private readonly IAuthHttpClient _authHttpClient;
         private readonly IChannelHttpClient _channelHttpClient;
-        private readonly IConnectedAccountHttpClient _connectedAccountHttpClient;
+        private readonly IPubSubHub _connectedAccountHttpClient;
         private readonly IOptions<LoginConfiguration> _loginConfiguration;
         private readonly IDao<CharacterDto, long> _characterDao;
+        private readonly ILogger _logger;
 
         public LoginService(IOptions<LoginConfiguration> loginConfiguration, IDao<AccountDto, long> accountDao,
             IAuthHttpClient authHttpClient,
-            IChannelHttpClient channelHttpClient, IConnectedAccountHttpClient connectedAccountHttpClient,
-            IDao<CharacterDto, long> characterDao)
+            IChannelHttpClient channelHttpClient, IPubSubHub connectedAccountHttpClient,
+            IDao<CharacterDto, long> characterDao, ILogger logger)
         {
             _loginConfiguration = loginConfiguration;
             _accountDao = accountDao;
@@ -59,6 +63,7 @@ namespace NosCore.GameObject.Networking.LoginService
             _connectedAccountHttpClient = connectedAccountHttpClient;
             _channelHttpClient = channelHttpClient;
             _characterDao = characterDao;
+            _logger = logger;
         }
 
         public async Task MoveChannelAsync(ClientSession.ClientSession clientSession, int channelId)
@@ -150,18 +155,17 @@ namespace NosCore.GameObject.Networking.LoginService
                         }).ConfigureAwait(false);
                         break;
                     default:
-                        var servers = (await _channelHttpClient.GetChannelsAsync().ConfigureAwait(false))
-                            ?.Where(c => c.Type == ServerType.WorldServer).ToList();
+                        var servers = (await _channelHttpClient.GetChannelsAsync().ConfigureAwait(false))!.Where(c => c.Type == ServerType.WorldServer).ToList();
                         var alreadyConnnected = false;
+                        byte i = 1;
+                        var connectedAccounts = await _connectedAccountHttpClient.GetSubscribersAsync();
                         var connectedAccount = new Dictionary<int, List<ConnectedAccount>>();
-                        var i = 1;
-                        foreach (var server in servers ?? new List<ChannelInfo>())
+                        foreach (var server in servers)
                         {
-                            var channelList = await _connectedAccountHttpClient.GetConnectedAccountAsync(
-                                server).ConfigureAwait(false);
-                            connectedAccount.Add(i, channelList);
+                            var accounts = connectedAccounts.Where(x => x.ChannelId == server.ServerId).ToList();
+                            connectedAccount.Add(i, accounts);
                             i++;
-                            if (channelList.Any(a => a.Name == acc.Name))
+                            if (accounts.Any(a => a.Name == acc.Name))
                             {
                                 alreadyConnnected = true;
                             }
@@ -180,6 +184,7 @@ namespace NosCore.GameObject.Networking.LoginService
                         acc.Language = language;
 
                         acc = await _accountDao.TryInsertOrUpdateAsync(acc).ConfigureAwait(false);
+
                         if (servers == null || servers.Count <= 0)
                         {
                             await clientSession.SendPacketAsync(new FailcPacket
@@ -256,13 +261,14 @@ namespace NosCore.GameObject.Networking.LoginService
 
                 await clientSession.DisconnectAsync().ConfigureAwait(false);
             }
-            catch
+            catch(Exception ex)
             {
                 await clientSession.SendPacketAsync(new FailcPacket
                 {
                     Type = LoginFailType.UnhandledError
                 }).ConfigureAwait(false);
                 await clientSession.DisconnectAsync().ConfigureAwait(false);
+                _logger.Error(LogLanguage.Instance.GetMessageFromKey(LogLanguageKey.EXCEPTION),ex);
             }
         }
     }

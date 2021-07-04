@@ -18,12 +18,10 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using NosCore.Core.HttpClients.ChannelHttpClients;
-using NosCore.Core.HttpClients.ConnectedAccountHttpClients;
 using NosCore.Core.I18N;
 using NosCore.Data.Enumerations.I18N;
 using NosCore.Data.WebApi;
 using NosCore.GameObject;
-using NosCore.GameObject.ComponentEntities.Extensions;
 using NosCore.GameObject.HttpClients.FriendHttpClient;
 using NosCore.GameObject.Networking;
 using NosCore.GameObject.Networking.ClientSession;
@@ -32,17 +30,19 @@ using NosCore.Packets.Enumerations;
 using NosCore.Packets.ServerPackets.UI;
 using System;
 using System.Threading.Tasks;
+using NosCore.Core.MessageQueue;
+using NosCore.GameObject.ComponentEntities.Extensions;
 
 namespace NosCore.PacketHandlers.Friend
 {
     public class FinsPacketHandler : PacketHandler<FinsPacket>, IWorldPacketHandler
     {
         private readonly IChannelHttpClient _channelHttpClient;
-        private readonly IConnectedAccountHttpClient _connectedAccountHttpClient;
+        private readonly IPubSubHub _connectedAccountHttpClient;
         private readonly IFriendHttpClient _friendHttpClient;
 
         public FinsPacketHandler(IFriendHttpClient friendHttpClient, IChannelHttpClient channelHttpClient,
-            IConnectedAccountHttpClient connectedAccountHttpClient)
+            IPubSubHub connectedAccountHttpClient)
         {
             _friendHttpClient = friendHttpClient;
             _channelHttpClient = channelHttpClient;
@@ -122,10 +122,9 @@ namespace NosCore.PacketHandlers.Friend
                                 session.Character.AccountLanguage)
                         }).ConfigureAwait(false);
 
-                        await targetCharacter.SendPacketAsync(await targetCharacter.GenerateFinitAsync(_friendHttpClient, _channelHttpClient,
+                        await targetCharacter.SendPacketAsync(await targetCharacter.GenerateFinitAsync(_friendHttpClient,
                             _connectedAccountHttpClient).ConfigureAwait(false)).ConfigureAwait(false);
-                        await session.Character.SendPacketAsync(await session.Character.GenerateFinitAsync(_friendHttpClient,
-                            _channelHttpClient, _connectedAccountHttpClient).ConfigureAwait(false)).ConfigureAwait(false);
+                        await session.Character.SendPacketAsync(await session.Character.GenerateFinitAsync(_friendHttpClient, _connectedAccountHttpClient).ConfigureAwait(false)).ConfigureAwait(false);
                         break;
 
                     case LanguageKey.FRIEND_REJECTED:
